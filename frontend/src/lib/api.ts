@@ -16,7 +16,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect on 401 for protected routes — not for auth endpoints where
+    // 401 means bad credentials and the component handles the error itself.
+    if (error.response?.status === 401 && !error.config?.url?.includes("/auth/")) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
