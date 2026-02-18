@@ -1,84 +1,139 @@
+<!--
+Sync Impact Report
+Version change: 0.1.0 → 1.0.0
+Added sections: All core principles and governance structure
+Templates requiring updates: None pending
+-->
+
+# Student & Staff Management System Constitution
+
+Version: 1.0.0  
+Ratification Date: 2026-02-17  
+Last Amended Date: 2026-02-17  
+
 ---
-description: Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync.
-handoffs: 
-  - label: Build Specification
-    agent: speckit.specify
-    prompt: Implement the feature specification based on the updated constitution. I want to build...
+
+## 1. Clean Architecture & Separation of Concerns
+
+All backend services MUST follow layered architecture:
+
+Controller → Service → Repository.
+
+- Business logic MUST NOT exist in controllers.
+- Entities MUST NOT be exposed directly in API responses.
+- DTOs MUST be used for all external communication.
+- Frontend components MUST separate UI from data-fetching logic.
+
+Rationale: Ensures maintainability, scalability, and testability.
+
 ---
 
-## User Input
+## 2. SOLID Principles Enforcement
 
-```text
-$ARGUMENTS
-```
+All backend and frontend code MUST adhere to SOLID principles:
 
-You **MUST** consider the user input before proceeding (if not empty).
+- Single Responsibility Principle strictly enforced.
+- Services MUST not handle multiple business domains.
+- Dependency Injection MUST be used.
+- Interfaces MUST define contracts where appropriate.
 
-## Outline
+Rationale: Prevents tightly coupled, fragile systems.
 
-You are updating the project constitution at `.specify/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.
+---
 
-**Note**: If `.specify/memory/constitution.md` does not exist yet, it should have been initialized from `.specify/templates/constitution-template.md` during project setup. If it's missing, copy the template first.
+## 3. API-First Design & Versioning
 
-Follow this execution flow:
+All features MUST begin with API contract definition.
 
-1. Load the existing constitution at `.specify/memory/constitution.md`.
-   - Identify every placeholder token of the form `[ALL_CAPS_IDENTIFIER]`.
-   **IMPORTANT**: The user might require less or more principles than the ones used in the template. If a number is specified, respect that - follow the general template. You will update the doc accordingly.
+- All endpoints MUST follow REST conventions.
+- API routes MUST be versioned (e.g., `/api/v1/`).
+- Breaking API changes REQUIRE version increment.
+- Standardized response format MUST be enforced.
 
-2. Collect/derive values for placeholders:
-   - If user input (conversation) supplies a value, use it.
-   - Otherwise infer from existing repo context (README, docs, prior constitution versions if embedded).
-   - For governance dates: `RATIFICATION_DATE` is the original adoption date (if unknown ask or mark TODO), `LAST_AMENDED_DATE` is today if changes are made, otherwise keep previous.
-   - `CONSTITUTION_VERSION` must increment according to semantic versioning rules:
-     - MAJOR: Backward incompatible governance/principle removals or redefinitions.
-     - MINOR: New principle/section added or materially expanded guidance.
-     - PATCH: Clarifications, wording, typo fixes, non-semantic refinements.
-   - If version bump type ambiguous, propose reasoning before finalizing.
+Rationale: Prevents frontend/backend misalignment.
 
-3. Draft the updated constitution content:
-   - Replace every placeholder with concrete text (no bracketed tokens left except intentionally retained template slots that the project has chosen not to define yet—explicitly justify any left).
-   - Preserve heading hierarchy and comments can be removed once replaced unless they still add clarifying guidance.
-   - Ensure each Principle section: succinct name line, paragraph (or bullet list) capturing non‑negotiable rules, explicit rationale if not obvious.
-   - Ensure Governance section lists amendment procedure, versioning policy, and compliance review expectations.
+---
 
-4. Consistency propagation checklist (convert prior checklist into active validations):
-   - Read `.specify/templates/plan-template.md` and ensure any "Constitution Check" or rules align with updated principles.
-   - Read `.specify/templates/spec-template.md` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
-   - Read `.specify/templates/tasks-template.md` and ensure task categorization reflects new or removed principle-driven task types (e.g., observability, versioning, testing discipline).
-   - Read each command file in `.specify/templates/commands/*.md` (including this one) to verify no outdated references (agent-specific names like CLAUDE only) remain when generic guidance is required.
-   - Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific guidance files if present). Update references to principles changed.
+## 4. Security-First Development
 
-5. Produce a Sync Impact Report (prepend as an HTML comment at top of the constitution file after update):
-   - Version change: old → new
-   - List of modified principles (old title → new title if renamed)
-   - Added sections
-   - Removed sections
-   - Templates requiring updates (✅ updated / ⚠ pending) with file paths
-   - Follow-up TODOs if any placeholders intentionally deferred.
+Security is non-negotiable.
 
-6. Validation before final output:
-   - No remaining unexplained bracket tokens.
-   - Version line matches report.
-   - Dates ISO format YYYY-MM-DD.
-   - Principles are declarative, testable, and free of vague language ("should" → replace with MUST/SHOULD rationale where appropriate).
+- Authentication MUST use JWT.
+- Passwords MUST be hashed using BCrypt.
+- Role-Based Access Control (RBAC) MUST be enforced.
+- All inputs MUST be validated.
+- Sensitive configuration MUST be stored in environment variables.
+- CORS MUST be explicitly configured.
 
-7. Write the completed constitution back to `.specify/memory/constitution.md` (overwrite).
+Rationale: Protects sensitive student and staff data.
 
-8. Output a final summary to the user with:
-   - New version and bump rationale.
-   - Any files flagged for manual follow-up.
-   - Suggested commit message (e.g., `docs: amend constitution to vX.Y.Z (principle additions + governance update)`).
+---
 
-Formatting & Style Requirements:
+## 5. Testing Discipline
 
-- Use Markdown headings exactly as in the template (do not demote/promote levels).
-- Wrap long rationale lines to keep readability (<100 chars ideally) but do not hard enforce with awkward breaks.
-- Keep a single blank line between sections.
-- Avoid trailing whitespace.
+Testing is mandatory.
 
-If the user supplies partial updates (e.g., only one principle revision), still perform validation and version decision steps.
+- Minimum 80% backend unit test coverage.
+- Critical services MUST have integration tests.
+- Controllers MUST be tested with mocked services.
+- Frontend components handling logic MUST have tests.
+- No feature is considered complete without tests.
 
-If critical info missing (e.g., ratification date truly unknown), insert `TODO(<FIELD_NAME>): explanation` and include in the Sync Impact Report under deferred items.
+Rationale: Ensures production reliability.
 
-Do not create a new template; always operate on the existing `.specify/memory/constitution.md` file.
+---
+
+## 6. Performance & Scalability Standards
+
+- Pagination MUST be implemented for list endpoints.
+- Database queries MUST use indexes where appropriate.
+- N+1 query problems MUST be avoided.
+- Backend response time SHOULD remain under 300ms for standard queries.
+- Frontend MUST use lazy loading where applicable.
+
+Rationale: System must scale with growing student/staff data.
+
+---
+
+## 7. UI/UX Consistency
+
+- UI must maintain consistent layout and spacing.
+- All forms MUST provide validation feedback.
+- Error messages MUST be user-friendly.
+- Responsive design is mandatory.
+- Accessibility considerations SHOULD be followed.
+
+Rationale: Ensures professional user experience.
+
+---
+
+## 8. Observability & Logging Standards
+
+- All backend services MUST use structured logging.
+- Errors MUST be logged with sufficient context.
+- Authentication failures MUST be logged.
+- Logs MUST NOT expose sensitive data.
+- Monitoring integration SHOULD be supported.
+
+Rationale: Enables debugging and production monitoring.
+
+---
+
+## Governance
+
+### Amendment Process
+
+- Amendments require documentation of change.
+- Version must be incremented following semantic versioning.
+- MAJOR: Breaking governance changes.
+- MINOR: New principle added.
+- PATCH: Clarifications or wording changes.
+
+### Compliance Review
+
+All pull requests MUST be reviewed against this constitution.  
+Non-compliant code MUST be rejected.
+
+---
+
+This constitution is binding for all development activities within this project.
