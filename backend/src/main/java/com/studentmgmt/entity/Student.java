@@ -38,6 +38,10 @@ public class Student {
 
     private LocalDate enrollmentDate;
 
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

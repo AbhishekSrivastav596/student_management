@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -14,14 +17,27 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
 
-    public Page<StudentDto> getAll(String search, Pageable pageable) {
+    public Page<StudentDto> getAll(String search, Boolean active, Pageable pageable) {
         Page<Student> page;
-        if (search != null && !search.isBlank()) {
+        boolean hasSearch = search != null && !search.isBlank();
+
+        if (hasSearch && active != null) {
+            page = studentRepository.searchByActive(search, active, pageable);
+        } else if (hasSearch) {
             page = studentRepository.search(search, pageable);
+        } else if (active != null) {
+            page = studentRepository.findByActive(active, pageable);
         } else {
             page = studentRepository.findAll(pageable);
         }
         return page.map(this::toDto);
+    }
+
+    public StudentDto toggleActive(Long id) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Student not found with id: " + id));
+        student.setActive(!student.isActive());
+        return toDto(studentRepository.save(student));
     }
 
     public StudentDto getById(Long id) {
@@ -56,6 +72,24 @@ public class StudentService {
         studentRepository.deleteById(id);
     }
 
+    @Transactional
+    public void bulkDelete(List<Long> ids) {
+        studentRepository.deleteAllByIdInBatch(ids);
+    }
+
+    @Transactional
+    public void bulkSetActive(List<Long> ids, boolean active) {
+        List<Student> students = studentRepository.findAllByIdIn(ids);
+        students.forEach(s -> s.setActive(active));
+        studentRepository.saveAll(students);
+    }
+
+    public List<StudentDto> getByIds(List<Long> ids) {
+        return studentRepository.findAllByIdIn(ids).stream()
+                .map(this::toDto)
+                .toList();
+    }
+
     private StudentDto toDto(Student student) {
         StudentDto dto = new StudentDto();
         dto.setId(student.getId());
@@ -66,6 +100,7 @@ public class StudentService {
         dto.setStudentClass(student.getStudentClass());
         dto.setSection(student.getSection());
         dto.setEnrollmentDate(student.getEnrollmentDate());
+        dto.setActive(student.isActive());
         return dto;
     }
 
@@ -78,6 +113,7 @@ public class StudentService {
                 .studentClass(dto.getStudentClass())
                 .section(dto.getSection())
                 .enrollmentDate(dto.getEnrollmentDate())
+                .active(dto.isActive())
                 .build();
     }
 }

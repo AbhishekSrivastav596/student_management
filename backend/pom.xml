@@ -97,6 +97,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Resend Email SDK -->
+        <dependency>
+            <groupId>com.resend</groupId>
+            <artifactId>resend-java</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+
         <!-- H2 in-memory database for tests -->
         <dependency>
             <groupId>com.h2database</groupId>
