@@ -47,6 +47,7 @@ export interface Student {
   studentClass?: string;
   section?: string;
   enrollmentDate?: string;
+  active?: boolean;
 }
 
 export interface PageResponse<T> {
@@ -58,11 +59,28 @@ export interface PageResponse<T> {
 }
 
 export const studentApi = {
-  getAll: (params: { search?: string; page?: number; size?: number }) =>
-    api.get<PageResponse<Student>>("/students", { params }),
+  getAll: (params: {
+    search?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    order?: "asc" | "desc";
+    active?: boolean;
+  }) => {
+    // Strip empty/undefined values to avoid sending search= (empty) which can cause 400
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
+    );
+    return api.get<PageResponse<Student>>("/students", { params: cleanParams });
+  },
   getById: (id: number) => api.get<Student>(`/students/${id}`),
   create: (data: Student) => api.post<Student>("/students", data),
   update: (id: number, data: Student) =>
     api.put<Student>(`/students/${id}`, data),
   delete: (id: number) => api.delete(`/students/${id}`),
+  toggleActive: (id: number) => api.patch<Student>(`/students/${id}/toggle-active`),
+  bulkDelete: (ids: number[]) => api.post("/students/bulk/delete", { ids }),
+  bulkActivate: (ids: number[]) => api.post("/students/bulk/activate", { ids }),
+  bulkDeactivate: (ids: number[]) => api.post("/students/bulk/deactivate", { ids }),
+  bulkSendInvite: (ids: number[]) => api.post("/students/bulk/send-invite", { ids }),
 };

@@ -23,13 +23,19 @@ public class StudentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "asc") String order) {
+            @RequestParam(defaultValue = "asc") String order,
+            @RequestParam(required = false) Boolean active) {
 
         Sort sort = order.equalsIgnoreCase("desc")
                 ? Sort.by(sortBy).descending()
                 : Sort.by(sortBy).ascending();
 
-        return ResponseEntity.ok(studentService.getAll(search, PageRequest.of(page, size, sort)));
+        return ResponseEntity.ok(studentService.getAll(search, active, PageRequest.of(page, size, sort)));
+    }
+
+    @PatchMapping("/{id}/toggle-active")
+    public ResponseEntity<StudentDto> toggleActive(@PathVariable Long id) {
+        return ResponseEntity.ok(studentService.toggleActive(id));
     }
 
     @GetMapping("/{id}")

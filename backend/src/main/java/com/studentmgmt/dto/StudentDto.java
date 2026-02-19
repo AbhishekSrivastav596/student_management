@@ -24,4 +24,5 @@ public class StudentDto {
     private String studentClass;
     private String section;
     private LocalDate enrollmentDate;
+    private boolean active = true;
 }
