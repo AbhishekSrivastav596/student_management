@@ -17,7 +17,7 @@ import {
 import {
   Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight,
   ArrowUpDown, ArrowUp, ArrowDown, UserCheck, UserX, Users, UserMinus,
-  Mail, X,
+  Mail, X, Upload, Download,
 } from "lucide-react";
 
 const emptyStudent: Student = {
@@ -142,6 +142,11 @@ export default function DashboardPage() {
       studentApi.getAll({ search: search || undefined, page, size, sortBy, order, active: activeParam }).then((r) => r.data),
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ["students", "stats"],
+    queryFn: () => studentApi.getStats().then((r) => r.data),
+  });
+
   // Derived selection info
   const selectedStudents = data?.content.filter((s) => selectedIds.has(s.id!)) ?? [];
   const hasSelection = selectedIds.size > 0;
@@ -189,6 +194,9 @@ export default function DashboardPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [page, data, dialogOpen, setPage]);
+
+  const [importResult, setImportResult] = useState<{ imported: number; failed: number; errors: string[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const invalidateAndClear = () => {
     queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -245,6 +253,32 @@ export default function DashboardPage() {
     },
   });
 
+  const importCsvMutation = useMutation({
+    mutationFn: (file: File) => studentApi.importCsv(file),
+    onSuccess: (res) => {
+      invalidateAndClear();
+      setImportResult(res.data);
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || "Failed to import CSV");
+    },
+  });
+
+  const handleExport = () => {
+    studentApi.exportCsv({
+      search: search || undefined,
+      active: activeParam,
+    });
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importCsvMutation.mutate(file);
+      e.target.value = "";
+    }
+  };
+
   const isBulkPending = bulkDeleteMutation.isPending || bulkActivateMutation.isPending
     || bulkDeactivateMutation.isPending || bulkSendInviteMutation.isPending;
 
@@ -291,12 +325,26 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Students</h1>
           <p className="text-sm text-muted-foreground">Manage your student records</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate} size="lg">
-              <Plus className="h-4 w-4 mr-2" /> Add Student
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importCsvMutation.isPending}>
+            <Upload className="h-4 w-4 mr-2" /> Import
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" /> Export
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreate} size="lg">
+                <Plus className="h-4 w-4 mr-2" /> Add Student
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Student" : "Add Student"}</DialogTitle>
@@ -345,7 +393,8 @@ export default function DashboardPage() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
@@ -355,21 +404,76 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Students</p>
-                <p className="text-3xl font-bold">{data?.totalElements ?? 0}</p>
+                <p className="text-3xl font-bold">{stats?.total ?? 0}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
+              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Students</p>
+                <p className="text-3xl font-bold text-emerald-600">{stats?.active ?? 0}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <UserCheck className="h-5 w-5 text-emerald-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Inactive Students</p>
+                <p className="text-3xl font-bold text-orange-600">{stats?.inactive ?? 0}</p>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <UserX className="h-5 w-5 text-orange-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Import Result */}
+      {importResult && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <span className="font-medium text-emerald-600">{importResult.imported} imported</span>
+                {importResult.failed > 0 && (
+                  <span className="ml-3 font-medium text-destructive">{importResult.failed} failed</span>
+                )}
+                {importResult.errors.length > 0 && (
+                  <ul className="mt-2 text-destructive list-disc list-inside">
+                    {importResult.errors.slice(0, 5).map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                    {importResult.errors.length > 5 && (
+                      <li>...and {importResult.errors.length - 5} more</li>
+                    )}
+                  </ul>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setImportResult(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Toolbar */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg shrink-0">
               {STATUS_FILTERS.map((opt) => {
                 const Icon = opt.icon;
                 return (
@@ -389,15 +493,77 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-            <div className="relative w-full lg:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or email..."
-                className="pl-10"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            <div className="flex-1 flex justify-center">
+              <div className="relative w-full lg:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or email..."
+                  className="pl-10"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </div>
+            {hasSelection && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-medium text-muted-foreground mr-1">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-muted-foreground hover:text-foreground mr-1"
+                  title="Clear selection"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                {anySelectedInactive && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                    disabled={isBulkPending}
+                    onClick={() => bulkActivateMutation.mutate(Array.from(selectedIds))}
+                  >
+                    <UserCheck className="h-4 w-4 mr-1.5" />
+                    Activate
+                  </Button>
+                )}
+                {anySelectedActive && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                    disabled={isBulkPending}
+                    onClick={() => bulkDeactivateMutation.mutate(Array.from(selectedIds))}
+                  >
+                    <UserX className="h-4 w-4 mr-1.5" />
+                    Deactivate
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                  disabled={isBulkPending || !allSelectedActive}
+                  title={!allSelectedActive ? "Can only send invites to active students" : "Send welcome email"}
+                  onClick={() => bulkSendInviteMutation.mutate(Array.from(selectedIds))}
+                >
+                  <Mail className="h-4 w-4 mr-1.5" />
+                  Send Invite
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive border-red-200 hover:bg-red-50"
+                  disabled={isBulkPending}
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Delete
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -566,76 +732,6 @@ export default function DashboardPage() {
         )}
       </Card>
 
-      {/* Floating Bulk Action Bar */}
-      {hasSelection && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-3 bg-background border border-border rounded-xl shadow-lg px-6 py-3">
-            {/* Left: Count + Clear */}
-            <div className="flex items-center gap-3 pr-3 border-r border-border">
-              <span className="text-sm font-medium">
-                {selectedIds.size} selected
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedIds(new Set())}
-                className="text-muted-foreground hover:text-foreground"
-                title="Clear selection"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              {anySelectedInactive && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                  disabled={isBulkPending}
-                  onClick={() => bulkActivateMutation.mutate(Array.from(selectedIds))}
-                >
-                  <UserCheck className="h-4 w-4 mr-1.5" />
-                  Activate
-                </Button>
-              )}
-              {anySelectedActive && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-orange-600 border-orange-200 hover:bg-orange-50"
-                  disabled={isBulkPending}
-                  onClick={() => bulkDeactivateMutation.mutate(Array.from(selectedIds))}
-                >
-                  <UserX className="h-4 w-4 mr-1.5" />
-                  Deactivate
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                disabled={isBulkPending || !allSelectedActive}
-                title={!allSelectedActive ? "Can only send invites to active students" : "Send welcome email"}
-                onClick={() => bulkSendInviteMutation.mutate(Array.from(selectedIds))}
-              >
-                <Mail className="h-4 w-4 mr-1.5" />
-                Send Invite
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive border-red-200 hover:bg-red-50"
-                disabled={isBulkPending}
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="h-4 w-4 mr-1.5" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
