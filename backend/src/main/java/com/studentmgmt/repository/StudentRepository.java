@@ -26,4 +26,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Page<Student> searchByActive(@Param("search") String search, @Param("active") boolean active, Pageable pageable);
 
     List<Student> findAllByIdIn(List<Long> ids);
+
+    long countByActive(boolean active);
 }

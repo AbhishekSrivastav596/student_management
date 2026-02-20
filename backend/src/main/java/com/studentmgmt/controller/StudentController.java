@@ -2,6 +2,7 @@ package com.studentmgmt.controller;
 
 import com.studentmgmt.dto.StudentDto;
 import com.studentmgmt.service.StudentService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -9,6 +10,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.PrintWriter;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/students")
@@ -57,5 +62,26 @@ public class StudentController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         studentService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Long>> getStats() {
+        return ResponseEntity.ok(studentService.getStats());
+    }
+
+    @GetMapping("/export/csv")
+    public void exportCsv(
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) Boolean active,
+            HttpServletResponse response) throws Exception {
+        response.setContentType("text/csv");
+        response.setHeader("Content-Disposition", "attachment; filename=students.csv");
+        PrintWriter writer = response.getWriter();
+        studentService.exportCsv(writer, search.isBlank() ? null : search, active);
+    }
+
+    @PostMapping("/import/csv")
+    public ResponseEntity<Map<String, Object>> importCsv(@RequestParam("file") MultipartFile file) throws Exception {
+        return ResponseEntity.ok(studentService.importCsv(file.getInputStream()));
     }
 }
